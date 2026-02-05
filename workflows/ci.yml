@@ -1,0 +1,74 @@
+name: CI - FinalSurge UI Tests
+
+on:
+  push:
+    branches: [ main, feature/** ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Ручной запуск из интерфейса GitHub
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: "UI Tests on ${{ matrix.browser }}"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false  # Не останавливаться при падении одного браузера
+      matrix:
+        browser: [chrome, firefox]  # Матрица по браузерам
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'  # Кеширование Maven-зависимостей
+
+      - name: 🧪 Run tests on ${{ matrix.browser }}
+        run: |
+          echo "=== Запуск тестов на ${{ matrix.browser }} ==="
+          mvn -B clean test \
+            -Dselenide.browser=${{ matrix.browser }} \
+            -Dheadless=true
+          echo "=== Тесты завершены ==="
+
+      - name: 📊 Generate Allure report
+        if: always()  # Выполнять даже если тесты упали
+        run: |
+          echo "Генерация Allure отчета..."
+          mvn allure:report || echo "Отчет не сгенерирован"
+
+      - name: 💾 Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ matrix.browser }}
+          path: target/surefire-reports/
+          retention-days: 14
+
+      - name: 📁 Upload Allure results (raw)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-${{ matrix.browser }}
+          path: target/allure-results/
+          retention-days: 14
+
+      - name: 🌐 Upload Allure HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-html-${{ matrix.browser }}
+          path: target/site/allure-maven/
+          retention-days: 14
