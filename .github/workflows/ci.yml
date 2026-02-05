@@ -37,11 +37,20 @@ jobs:
 
       - name: 🧪 Run tests on ${{ matrix.browser }}
         run: |
+          echo "=== Установка браузера ${{ matrix.browser }} ==="
+          # Убедимся, что браузеры доступны (это часто требуется на CI)
+          if [ "${{ matrix.browser }}" = "chrome" ]; then
+            sudo apt-get update
+            sudo apt-get install -y google-chrome-stable
+          elif [ "${{ matrix.browser }}" = "firefox" ]; then
+            sudo apt-get update
+            sudo apt-get install -y firefox-esr
+          fi
           echo "=== Запуск тестов на ${{ matrix.browser }} ==="
-          mvn -B clean test \
+          # Ключ -e (--errors) покажет подробный вывод при ошибке
+          mvn -B -e clean test \
             -Dselenide.browser=${{ matrix.browser }} \
             -Dheadless=true
-          echo "=== Тесты завершены ==="
 
       - name: 📊 Generate Allure report
         if: always()  # Выполнять даже если тесты упали
