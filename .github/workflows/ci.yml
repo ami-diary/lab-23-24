@@ -5,7 +5,7 @@ on:
     branches: [ main, feature/** ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # Ручной запуск из интерфейса GitHub
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: false  # Не останавливаться при падении одного браузера
+      fail-fast: false
       matrix:
-        browser: [chrome, firefox]  # Матрица по браузерам
+        browser: [chrome, firefox]
 
     steps:
       - name: 📥 Checkout code
@@ -33,51 +33,18 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'maven'  # Кеширование Maven-зависимостей
+          cache: 'maven'
 
+      # ВАЖНО: Убрали установку браузеров! На GitHub Ubuntu они уже есть.
       - name: 🧪 Run tests on ${{ matrix.browser }}
         run: |
-          echo "=== Установка браузера ${{ matrix.browser }} ==="
-          # Убедимся, что браузеры доступны (это часто требуется на CI)
-          if [ "${{ matrix.browser }}" = "chrome" ]; then
-            sudo apt-get update
-            sudo apt-get install -y google-chrome-stable
-          elif [ "${{ matrix.browser }}" = "firefox" ]; then
-            sudo apt-get update
-            sudo apt-get install -y firefox-esr
-          fi
           echo "=== Запуск тестов на ${{ matrix.browser }} ==="
-          # Ключ -e (--errors) покажет подробный вывод при ошибке
-          mvn -B -e clean test \
+          # Просто запускаем тесты
+          mvn -B clean test \
             -Dselenide.browser=${{ matrix.browser }} \
-            -Dheadless=true
+            -Dheadless=true \
+            -Dwebdriver.chrome.driver=/usr/bin/chromedriver \
+            -Dwebdriver.gecko.driver=/usr/bin/geckodriver
 
-      - name: 📊 Generate Allure report
-        if: always()  # Выполнять даже если тесты упали
-        run: |
-          echo "Генерация Allure отчета..."
-          mvn allure:report || echo "Отчет не сгенерирован"
-
-      - name: 💾 Upload Surefire reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: surefire-reports-${{ matrix.browser }}
-          path: target/surefire-reports/
-          retention-days: 14
-
-      - name: 📁 Upload Allure results (raw)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results-${{ matrix.browser }}
-          path: target/allure-results/
-          retention-days: 14
-
-      - name: 🌐 Upload Allure HTML report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-html-${{ matrix.browser }}
-          path: target/site/allure-maven/
-          retention-days: 14
+      # Временно УБРАЛИ генерацию и загрузку артефактов
+      # Сначала убедимся, что тесты вообще запускаются
